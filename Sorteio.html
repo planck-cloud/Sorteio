@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sorteio por Turmas - Com Salvar Manual</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+  <style>
+    :root {
+      --bg: #f8f9fa; --card: #ffffff; --text: #212529; --primary: #4361ee;
+      --danger: #e63946; --success: #06d6a0; --warning: #ffb703; --border: #dee2e6;
+      --shadow: 0 6px 16px rgba(0,0,0,0.1); --number-bg: #e0f2fe;
+    }
+    [data-theme="dark"] {
+      --bg: #121212; --card: #1e1e1e; --text: #e0e0e0; --border: #333;
+      --shadow: 0 6px 16px rgba(0,0,0,0.3); --number-bg: #1e3a5f;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg); color: var(--text); min-height: 100vh; padding: 2rem;
+      transition: background 0.3s; display: flex; align-items: center; justify-content: center;
+    }
+
+    .container { width: 100%; max-width: 500px; }
+    .card { background: var(--card); border-radius: 16px; padding: 2rem; box-shadow: var(--shadow); border: 1px solid var(--border); text-align: center; }
+    h1 { color: var(--primary); margin-bottom: 0.5rem; font-size: 2rem; }
+    .subtitle { color: #666; margin-bottom: 1.5rem; font-size: 1rem; }
+
+    input, button {
+      width: 100%; padding: 0.9rem 1rem; margin: 0.6rem 0;
+      border: 2px solid var(--border); border-radius: 8px; font-size: 1rem;
+    }
+    input:focus { outline: none; border-color: var(--primary); }
+    input.error { border-color: var(--danger); background: #ffe6e6; }
+    button {
+      background: var(--primary); color: white; font-weight: 600;
+      cursor: pointer; transition: all 0.3s; border: none;
+    }
+    button:hover { background: #3a56d4; transform: translateY(-2px); }
+    .btn-success { background: var(--success); }
+    .btn-success:hover { background: #05b589; }
+    .btn-danger { background: var(--danger); }
+    .btn-warning { background: var(--warning); color: #000; }
+    .btn-save { background: #2d6a4f; }
+    .btn-save:hover { background: #1b4332; }
+
+    .hidden { display: none; }
+
+    .app-container { max-width: 900px; margin: 2rem auto; }
+    .header-app {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;
+    }
+    .user-info { font-size: 1.1rem; font-weight: 600; color: var(--primary); }
+    .theme-toggle {
+      background: var(--card); border: 1px solid var(--border); padding: 0.5rem; border-radius: 50%;
+      cursor: pointer; font-size: 1.2rem; width: 40px; height: 40px;
+      display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow);
+    }
+
+    .group-form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.8rem; align-items: end; }
+    @media (max-width: 600px) { .group-form { grid-template-columns: 1fr; } .group-form button { grid-column: 1/-1; } }
+    .groups-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; margin-top: 1rem; }
+    .group-card { background: rgba(67,97,238,0.05); border: 2px solid var(--primary); border-radius: 12px; padding: 1rem; transition: all 0.3s; }
+    .group-card.eliminated { opacity: 0.4; border-color: var(--danger); transform: scale(0.95); background: rgba(230,57,70,0.1); }
+    .group-card h3 { margin-bottom: 0.5rem; color: var(--primary); display: flex; justify-content: space-between; }
+    .group-card.eliminated h3 { color: var(--danger); text-decoration: line-through; }
+    .group-members { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+    .member { background: var(--card); padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.9rem; border: 1px solid var(--border); }
+    .remove-group { color: var(--danger); cursor: pointer; font-size: 1.1rem; }
+
+    .numbers-card { background: var(--number-bg); border: 2px solid var(--primary); }
+    .numbers-list { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 1rem; justify-content: center; }
+    .number-tag { background: var(--primary); color: white; padding: 0.4rem 0.8rem; border-radius: 8px; font-weight: bold; }
+    .number-tag.used { background: var(--danger); text-decoration: line-through; opacity: 0.6; }
+
+    #winner { text-align: center; font-size: 2.8rem; font-weight: bold; min-height: 100px; margin: 2rem 0; color: var(--success); }
+    .spinning { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+    .history { max-height: 200px; overflow-y: auto; padding: 0.5rem; border: 1px dashed var(--border); border-radius: 8px; background: rgba(0,0,0,0.02); }
+    .history-item { padding: 0.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 0.95rem; }
+    .stats { display: flex; justify-content: space-around; padding: 1rem; background: rgba(67,97,238,0.1); border-radius: 10px; font-weight: 600; color: var(--primary); }
+
+    .save-feedback {
+      position: fixed; top: 1rem; left: 50%; transform: translateX(-50%);
+      background: var(--success); color: white; padding: 0.8rem 1.5rem;
+      border-radius: 50px; font-weight: 600; box-shadow: var(--shadow);
+      opacity: 0; transition: opacity 0.3s; z-index: 1000;
+    }
+    .save-feedback.show { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- FEEDBACK DE SALVAR -->
+  <div id="saveFeedback" class="save-feedback">Dados salvos!</div>
+
+  <!-- LOGIN -->
+  <div id="loginScreen" class="container">
+    <div class="card">
+      <h1>Sorteio por Turmas</h1>
+      <p class="subtitle">Faça login ou crie uma turma</p>
+
+      <input type="text" id="loginName" placeholder="Nome da Turma (ex: 1ºA)" />
+      <input type="password" id="loginPass" placeholder="Senha" />
+      <button onclick="login()">Entrar</button>
+
+      <p style="margin-top:1rem; color:#666;">Nova turma?</p>
+      <button class="btn-success" onclick="showCreate()">Criar Turma</button>
+
+      <div id="createProfile" class="hidden" style="margin-top:1rem;">
+        <input type="text" id="newName" placeholder="Nome da Turma" />
+        <input type="password" id="newPass" placeholder="Senha" />
+        <input type="password" id="newPassConfirm" placeholder="Confirme a Senha" />
+        <button class="btn-success" onclick="createProfile()">Criar Turma</button>
+        <button class="btn-danger" style="margin-top:0.5rem;" onclick="hideCreate()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- APP -->
+  <div id="appScreen" class="hidden app-container">
+    <div class="header-app">
+      <div class="user-info">Turma: <span id="currentUser"></span></div>
+      <div style="display:flex; gap:0.5rem; flex-wrap:wrap;">
+        <button class="btn-save" style="padding:0.5rem 1rem; width:auto; font-size:0.9rem;" onclick="manualSave()">
+          Salvar Agora
+        </button>
+        <div class="theme-toggle" onclick="toggleTheme()"><i class="fas fa-moon"></i></div>
+        <button class="btn-danger" style="padding:0.5rem 1rem; width:auto;" onclick="logout()">Trocar Turma</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Adicionar Grupo</h2>
+      <div class="group-form">
+        <div><label>Grupo</label><input type="text" id="groupName" placeholder="Ex: Grupo 1" /></div>
+        <div><label>Nomes (um por linha)</label><textarea id="members" placeholder="Ana\nJoão"></textarea></div>
+        <button class="btn-add" onclick="addNameGroup()">Adicionar</button>
+      </div>
+    </div>
+
+    <div class="card numbers-card">
+      <h2>Números</h2>
+      <div class="group-form">
+        <div style="grid-column:1/-1;"><label>Números (vírgula ou enter)</label><textarea id="numbersInput" placeholder="01, 02, 03"></textarea></div>
+        <button class="btn-add" onclick="updateNumbers()">Atualizar</button>
+      </div>
+      <div class="numbers-list" id="numbersList"></div>
+      <p>Disponíveis: <strong id="availableNumbers">0</strong></p>
+    </div>
+
+    <div class="card">
+      <h2>Grupos (<span id="totalGroups">0</span>)</h2>
+      <div id="groupsContainer" class="groups-container"></div>
+    </div>
+
+    <div class="card" style="text-align:center;">
+      <button id="sortearBtn" class="btn-sortear" onclick="sortear()" disabled>Sortear</button>
+      <button class="btn-warning" onclick="resetAll()">Reiniciar</button>
+    </div>
+
+    <div class="card">
+      <h2>Último Sorteado</h2>
+      <div id="winner">Clique em "Sortear"</div>
+      <div class="stats">
+        <div>Grupos: <span id="activeGroups">0</span></div>
+        <div>Números: <span id="availableNumbersStat">0</span></div>
+        <div>Sorteados: <span id="totalSorteados">0</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Histórico</h2>
+      <div id="history" class="history"></div>
+    </div>
+  </div>
+
+  <script>
+    const PROFILES_KEY = 'sorteio_turmas';
+    const CURRENT_KEY = 'sorteio_current';
+    let currentUser = null;
+    let nameGroups = [], numbers = [], usedNumbers = [], history = [];
+
+    // === SALVAR MANUAL ===
+    function manualSave() {
+      saveData();
+      const feedback = document.getElementById('saveFeedback');
+      feedback.classList.add('show');
+      setTimeout(() => feedback.classList.remove('show'), 2000);
+    }
+
+    // === PERFIS ===
+    function getProfiles() {
+      try {
+        const data = localStorage.getItem(PROFILES_KEY);
+        return data ? JSON.parse(data) : {};
+      } catch (e) {
+        console.error('Erro ao ler perfis:', e);
+        return {};
+      }
+    }
+
+    function saveProfiles(profiles) {
+      try {
+        localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+      } catch (e) {
+        console.error('Erro ao salvar:', e);
+        alert('Erro ao salvar! Verifique o armazenamento local.');
+      }
+    }
+
+    function login() {
+      const name = document.getElementById('loginName').value.trim();
+      const pass = document.getElementById('loginPass').value;
+      if (!name || !pass) return alert('Preencha turma e senha!');
+
+      const profiles = getProfiles();
+      if (profiles[name] && profiles[name].password === pass) {
+        currentUser = name;
+        localStorage.setItem(CURRENT_KEY, name);
+        loadData();
+        showApp();
+      } else {
+        alert('Turma ou senha incorretas!');
+      }
+    }
+
+    function showCreate() {
+      document.getElementById('createProfile').classList.remove('hidden');
+    }
+
+    function hideCreate() {
+      document.getElementById('createProfile').classList.add('hidden');
+    }
+
+    function createProfile() {
+      const nameInput = document.getElementById('newName');
+      const passInput = document.getElementById('newPass');
+      const confirmInput = document.getElementById('newPassConfirm');
+
+      const name = nameInput.value.trim();
+      const pass = passInput.value;
+      const confirm = confirmInput.value;
+
+      nameInput.classList.remove('error');
+      passInput.classList.remove('error');
+      confirmInput.classList.remove('error');
+
+      if (!name || !pass) {
+        alert('Preencha nome e senha!');
+        if (!name) nameInput.classList.add('error');
+        if (!pass) passInput.classList.add('error');
+        return;
+      }
+      if (pass !== confirm) {
+        alert('Senhas não coincidem!');
+        passInput.classList.add('error');
+        confirmInput.classList.add('error');
+        return;
+      }
+
+      const profiles = getProfiles();
+      if (profiles[name]) {
+        alert('Esta turma já existe!');
+        nameInput.classList.add('error');
+        return;
+      }
+
+      profiles[name] = { password: pass, data: { nameGroups: [], numbers: [], usedNumbers: [], history: [] } };
+      saveProfiles(profiles);
+      alert(`Turma "${name}" criada com sucesso!`);
+      hideCreate();
+      document.getElementById('loginName').value = name;
+      document.getElementById('loginPass').focus();
+    }
+
+    function loadData() {
+      const profiles = getProfiles();
+      const data = profiles[currentUser].data;
+      nameGroups = data.nameGroups || [];
+      numbers = data.numbers || [];
+      usedNumbers = data.usedNumbers || [];
+      history = data.history || [];
+    }
+
+    function saveData() {
+      const profiles = getProfiles();
+      profiles[currentUser].data = { nameGroups, numbers, usedNumbers, history };
+      saveProfiles(profiles);
+    }
+
+    function showApp() {
+      document.getElementById('loginScreen').classList.add('hidden');
+      document.getElementById('appScreen').classList.remove('hidden');
+      document.getElementById('currentUser').textContent = currentUser;
+      renderAll();
+      checkSortear();
+    }
+
+    function logout() {
+      saveData();
+      currentUser = null;
+      localStorage.removeItem(CURRENT_KEY);
+      document.getElementById('appScreen').classList.add('hidden');
+      document.getElementById('loginScreen').classList.remove('hidden');
+      document.getElementById('createProfile').classList.add('hidden');
+    }
+
+    // === SORTEIO ===
+    function addNameGroup() {
+      const name = document.getElementById('groupName').value.trim();
+      const members = document.getElementById('members').value.trim().split('\n').map(m => m.trim()).filter(m => m);
+      if (!name || members.length === 0) return alert('Preencha corretamente!');
+      nameGroups.push({ id: Date.now(), name, members, eliminated: false });
+      clearForm();
+      renderGroups();
+      checkSortear();
+      saveData();
+    }
+
+    function updateNumbers() {
+      const input = document.getElementById('numbersInput').value.trim();
+      const nums = input.split(/[\n,\s]+/).map(n => n.trim()).filter(n => n);
+      if (nums.length === 0) return alert('Adicione números!');
+      numbers = [...new Set(nums)];
+      usedNumbers = [];
+      renderNumbers();
+      checkSortear();
+      saveData();
+    }
+
+    function renderGroups() {
+      const el = document.getElementById('groupsContainer');
+      el.innerHTML = '';
+      nameGroups.forEach(g => {
+        const card = document.createElement('div');
+        card.className = `group-card ${g.eliminated ? 'eliminated' : ''}`;
+        const membersHTML = g.members.map(m => `<span class="member">${m}</span>`).join('');
+        card.innerHTML = `<h3>${g.name} ${!g.eliminated ? `<span class="remove-group" onclick="removeGroup(${g.id})">×</span>` : ''}</h3><div class="group-members">${membersHTML}</div>`;
+        el.appendChild(card);
+      });
+      document.getElementById('totalGroups').textContent = nameGroups.length;
+    }
+
+    function removeGroup(id) {
+      nameGroups = nameGroups.filter(g => g.id !== id);
+      renderGroups();
+      checkSortear();
+      saveData();
+    }
+
+    function renderNumbers() {
+      const el = document.getElementById('numbersList');
+      el.innerHTML = '';
+      numbers.forEach(n => {
+        const tag = document.createElement('div');
+        tag.className = `number-tag ${usedNumbers.includes(n) ? 'used' : ''}`;
+        tag.textContent = n;
+        el.appendChild(tag);
+      });
+      document.getElementById('availableNumbers').textContent = numbers.length - usedNumbers.length;
+    }
+
+    function sortear() {
+      const active = nameGroups.filter(g => !g.eliminated);
+      const avail = numbers.filter(n => !usedNumbers.includes(n));
+      if (active.length === 0 || avail.length === 0) return;
+
+      const btn = document.getElementById('sortearBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sorteando...';
+
+      setTimeout(() => {
+        const total = active.reduce((s, g) => s + g.members.length, 0);
+        let r = Math.floor(Math.random() * total);
+        let person, group;
+        for (const g of active) {
+          if (r < g.members.length) { person = g.members[r]; group = g; break; }
+          r -= g.members.length;
+        }
+        const num = avail[Math.floor(Math.random() * avail.length)];
+        group.eliminated = true;
+        usedNumbers.push(num);
+
+        document.getElementById('winner').innerHTML = `<div class="spinning">${person}</div><div style="font-size:1.4rem;margin-top:0.5rem;color:var(--primary);">Grupo: <strong>${group.name}</strong> – Nº: <strong>${num}</strong></div>`;
+        history.push({ person, group: group.name, number: num, time: new Date().toLocaleTimeString() });
+        renderAll();
+        checkSortear();
+        saveData();
+        btn.textContent = 'Sortear';
+      }, 1800);
+    }
+
+    function renderHistory() {
+      const el = document.getElementById('history');
+      el.innerHTML = history.map((h, i) => `<div class="history-item"><span>${i+1}. ${h.person} (${h.group}) – ${h.number}</span><span style="color:#888;font-size:0.8rem;">${h.time}</span></div>`).join('');
+    }
+
+    function renderAll() {
+      renderGroups();
+      renderNumbers();
+      renderHistory();
+      updateStats();
+    }
+
+    function updateStats() {
+      const active = nameGroups.filter(g => !g.eliminated).length;
+      const avail = numbers.length - usedNumbers.length;
+      document.getElementById('activeGroups').textContent = active;
+      document.getElementById('availableNumbersStat').textContent = avail;
+      document.getElementById('totalSorteados').textContent = history.length;
+    }
+
+    function checkSortear() {
+      const active = nameGroups.filter(g => !g.eliminated).length;
+      const avail = numbers.length - usedNumbers.length;
+      document.getElementById('sortearBtn').disabled = (active === 0 || avail === 0);
+    }
+
+    function resetAll() {
+      if (!confirm('Reiniciar esta turma?')) return;
+      nameGroups.forEach(g => g.eliminated = false);
+      usedNumbers = [];
+      history = [];
+      document.getElementById('winner').textContent = 'Clique em "Sortear"';
+      renderAll();
+      checkSortear();
+      saveData();
+    }
+
+    function clearForm() {
+      document.getElementById('groupName').value = '';
+      document.getElementById('members').value = '';
+    }
+
+    function toggleTheme() {
+      const isDark = document.body.getAttribute('data-theme') === 'dark';
+      document.body.setAttribute('data-theme', isDark ? 'light' : 'dark');
+      document.querySelector('.theme-toggle i').className = isDark ? 'fas fa-moon' : 'fas fa-sun';
+    }
+
+    window.onload = () => {
+      const saved = localStorage.getItem(CURRENT_KEY);
+      if (saved && getProfiles()[saved]) {
+        currentUser = saved;
+        loadData();
+        showApp();
+      }
+    };
+  </script>
+</body>
+</html>
